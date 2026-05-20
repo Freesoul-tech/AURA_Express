@@ -117,11 +117,13 @@
                 <div class="space-y-6">
                     <section class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-6">
                         <h2 class="text-lg font-black text-gray-900 dark:text-white mb-4">Seller Profile</h2>
-                        <form id="seller-profile-form" class="space-y-3">
+                        <form id="seller-profile-form" enctype="multipart/form-data" class="space-y-3">
                             <input name="sellerName" placeholder="Seller name" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]">
                             <input name="shopName" placeholder="Shop name" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]">
                             <input name="email" type="email" placeholder="Shop email" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]">
                             <input name="phone" placeholder="Business phone" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]">
+                            <input id="seller-id-document" name="idDocument" type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-[#FF6A00] file:text-white file:font-bold hover:file:bg-[#e65f00]" />
+                            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Upload seller ID or business registration document for verification.</p>
                             <button type="submit" class="w-full px-4 py-2.5 bg-gray-900 dark:bg-white dark:text-gray-900 text-white rounded-lg text-sm font-bold hover:opacity-90 transition-opacity">Save Profile</button>
                         </form>
                     </section>

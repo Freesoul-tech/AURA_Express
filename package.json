@@ -1,0 +1,14 @@
+{
+  "name": "aura-express-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Union Market buyer/seller verification and transaction tracking.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

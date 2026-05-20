@@ -585,16 +585,52 @@
         form.elements.phone.value = profile.phone || '';
     }
 
-    function handleProfileSubmit(event) {
+    async function handleProfileSubmit(event) {
         event.preventDefault();
         const form = event.currentTarget;
-        saveSellerProfile({
+        const profilePatch = {
             sellerName: form.elements.sellerName.value.trim(),
             shopName: form.elements.shopName.value.trim(),
             email: form.elements.email.value.trim(),
             phone: form.elements.phone.value.trim()
-        });
-        if (typeof showToast === 'function') showToast('Seller profile saved.', 'success');
+        };
+
+        const fileInput = form.elements.idDocument;
+        const file = fileInput?.files?.[0];
+        if (file) {
+            profilePatch.idDocument = file.name;
+        }
+
+        saveSellerProfile(profilePatch);
+
+        const file = fileInput?.files?.[0];
+
+        if (file && typeof backendRequest === 'function') {
+            const formData = new FormData();
+            formData.append('sellerName', profilePatch.sellerName);
+            formData.append('shopName', profilePatch.shopName);
+            formData.append('email', profilePatch.email);
+            formData.append('phone', profilePatch.phone);
+            formData.append('idDocument', file);
+
+            const response = await backendRequest('/api/seller/profile', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok && response.json?.success) {
+                if (typeof showToast === 'function') showToast('Seller profile saved and verification document uploaded.', 'success');
+                renderDashboard();
+                return;
+            }
+            if (response.status !== 0) {
+                if (typeof showToast === 'function') showToast('Profile saved locally but verification upload failed.', 'error');
+                renderDashboard();
+                return;
+            }
+        }
+
+        if (typeof showToast === 'function') showToast('Seller profile saved locally.', 'success');
         renderDashboard();
     }
 

@@ -84,6 +84,14 @@
                         <p id="phone-error" class="mt-1 text-xs text-red-500 hidden"></p>
                     </div>
 
+                    <!-- ID Upload -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Government ID / Passport <span class="text-red-500">*</span></label>
+                        <input type="file" id="signup-id-file" accept=".jpg,.jpeg,.png,.pdf" required class="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-[#FF6A00] file:text-white file:font-bold hover:file:bg-[#e65f00]" />
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Upload a clear photo or scan of your ID for secure account verification.</p>
+                        <p id="id-file-error" class="mt-1 text-xs text-red-500 hidden"></p>
+                    </div>
+
                     <!-- Password -->
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Password <span class="text-red-500">*</span></label>
@@ -403,15 +411,16 @@
         function validatePassword(password) {
             return password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^a-zA-Z0-9]/.test(password);
         }
-        
-        function validatePhone(phone) {
-            return phone.length >= 10 && /^\+?1?\d{9,}$/.test(phone.replace(/\D/g, ''));
+
+        async function backendRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                const json = await response.json().catch(() => null);
+                return { ok: response.ok, status: response.status, json };
+            } catch (error) {
+                return { ok: false, status: 0, error };
+            }
         }
-        
-        // Real-time Validation
-        document.getElementById('signup-name').addEventListener('blur', function() {
-            const error = document.getElementById('name-error');
-            if (this.value.trim().length < 2) {
                 error.textContent = 'Name must be at least 2 characters';
                 error.classList.remove('hidden');
                 this.classList.add('border-red-500');
@@ -536,14 +545,22 @@
             submitLoader.classList.remove('hidden');
             
             // Basic sanitization to prevent XSS in stored data
-            const sanitize = (str) => str.replace(/[<>]/g, '');
+            const sanitize = (str) => String(str || '').replace(/[<>]/g, '');
             const safeName = sanitize(name);
             const safeEmail = sanitize(email).toLowerCase().trim();
             const safePhone = sanitize(phone);
-
-            // Simulate form submission
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const idFile = document.getElementById('signup-id-file').files[0];
+            document.getElementById('id-file-error').classList.add('hidden');
             
+            if (!idFile) {
+                document.getElementById('id-file-error').textContent = 'Please upload a government ID to verify your account';
+                document.getElementById('id-file-error').classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitText.classList.remove('hidden');
+                submitLoader.classList.add('hidden');
+                return;
+            }
+
             const accounts = JSON.parse(localStorage.getItem('aura_accounts')) || [];
             const existingAccount = accounts.find(acc => (acc.email || '').toLowerCase() === safeEmail);
 
@@ -556,7 +573,6 @@
                 return;
             }
 
-            // Store data
             const signupData = {
                 name: safeName,
                 email: safeEmail,
@@ -566,7 +582,35 @@
                 referralCode: document.getElementById('signup-referral').value,
                 timestamp: new Date().toISOString()
             };
-            
+
+            const backendForm = new FormData();
+            backendForm.append('name', safeName);
+            backendForm.append('email', safeEmail);
+            backendForm.append('phone', safePhone);
+            backendForm.append('password', password);
+            backendForm.append('newsletter', signupData.newsletter);
+            backendForm.append('twoFactor', signupData.twoFactor);
+            backendForm.append('referralCode', signupData.referralCode);
+            backendForm.append('idDocument', idFile);
+
+            const backendResponse = await backendRequest('/api/signup', {
+                method: 'POST',
+                body: backendForm
+            });
+
+            if (backendResponse.ok && backendResponse.json?.success) {
+                if (typeof showToast === 'function') showToast('Account created and ID securely uploaded.', 'success');
+            } else if (backendResponse.status !== 0 && backendResponse.json?.error) {
+                submitBtn.disabled = false;
+                submitText.classList.remove('hidden');
+                submitLoader.classList.add('hidden');
+                document.getElementById('email-error').textContent = backendResponse.json.error;
+                document.getElementById('email-error').classList.remove('hidden');
+                return;
+            } else if (backendResponse.status !== 0) {
+                if (typeof showToast === 'function') showToast('Server responded with an error. Account is saved locally, but verification may be delayed.', 'error');
+            }
+
             localStorage.setItem('signup_pending', JSON.stringify(signupData));
             accounts.push({
                 name: safeName,
@@ -574,7 +618,8 @@
                 phone: safePhone,
                 password: await hashPassword(password), // Using SHA-256 via Web Crypto API
                 createdAt: new Date().toISOString(),
-                provider: 'email'
+                provider: 'email',
+                idDocument: idFile.name
             });
             localStorage.setItem('aura_accounts', JSON.stringify(accounts));
             

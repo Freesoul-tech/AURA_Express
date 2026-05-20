@@ -131,6 +131,16 @@ async function hashPassword(password) {
     return hashHex;
 }
 
+async function backendRequest(url, options = {}) {
+    try {
+        const response = await fetch(url, options);
+        const json = await response.json().catch(() => null);
+        return { ok: response.ok, status: response.status, json };
+    } catch (error) {
+        return { ok: false, status: 0, error };
+    }
+}
+
 function highlightMatch(text, terms) {
     if (!terms || terms.length === 0 || !text) return text;
     // Filter out very short terms to prevent excessive highlighting (e.g., single letters)
@@ -772,6 +782,11 @@ function openCheckoutModal() {
                         <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Airtel Money</span>
                     </label>
                     <label class="relative flex flex-col items-center p-4 border-2 border-gray-100 dark:border-gray-800 rounded-xl cursor-pointer hover:border-[#FF6A00]/50 transition-all has-[:checked]:border-[#FF6A00] has-[:checked]:bg-orange-50/50 dark:has-[:checked]:bg-orange-900/10 group">
+                        <input type="radio" name="payment" value="paychangu" class="absolute opacity-0" onchange="updatePaymentInputLabel(this.value)">
+                        <img src="icons/airtel_money.png" alt="PayChangu" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform">
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">PayChangu</span>
+                    </label>
+                    <label class="relative flex flex-col items-center p-4 border-2 border-gray-100 dark:border-gray-800 rounded-xl cursor-pointer hover:border-[#FF6A00]/50 transition-all has-[:checked]:border-[#FF6A00] has-[:checked]:bg-orange-50/50 dark:has-[:checked]:bg-orange-900/10 group">
                         <input type="radio" name="payment" value="mpamba" class="absolute opacity-0" onchange="updatePaymentInputLabel(this.value)">
                         <img src="icons/tnm_mpamba.png" alt="Mpamba" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform">
                         <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Mpamba</span>
@@ -866,6 +881,7 @@ function processCheckoutPayment() {
     let methodTitle = '';
     switch (selectedPaymentMethod) {
         case 'airtel': methodTitle = 'Airtel Money'; break;
+        case 'paychangu': methodTitle = 'PayChangu'; break;
         case 'mpamba': methodTitle = 'Mpamba'; break;
         case 'nationalbank': methodTitle = 'National Bank'; break;
         case 'standardbank': methodTitle = 'Standard Bank'; break;
@@ -880,6 +896,29 @@ function processCheckoutPayment() {
         account: phoneValue,
         status: 'Pending'
     };
+
+    const userEmail = (JSON.parse(localStorage.getItem('aura_current_user') || 'null')?.email || '').toLowerCase();
+    const backendResponse = await backendRequest('/api/checkout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            userEmail,
+            items: cartItems,
+            total: totals.total,
+            method: methodTitle,
+            account: phoneValue
+        })
+    });
+
+    if (backendResponse.ok && backendResponse.json?.success) {
+        transaction.id = backendResponse.json.transaction?.id || transaction.id;
+        transaction.status = backendResponse.json.transaction?.status || transaction.status;
+        if (typeof showToast === 'function') showToast('Payment recorded with backend tracking.', 'success');
+    } else if (backendResponse.status !== 0) {
+        if (typeof showToast === 'function') showToast('Payment saved locally but backend tracking was unavailable.', 'error');
+    }
 
     // Save to history
     const history = JSON.parse(localStorage.getItem('aura_transactions')) || [];
@@ -2030,6 +2069,7 @@ function renderPaymentMethods() {
     
     const methods = [
         { name: 'Airtel Money', icon: 'icons/airtel_money.png' },
+        { name: 'PayChangu', icon: 'icons/airtel_money.png' },
         { name: 'Mpamba', icon: 'icons/tnm_mpamba.png' },
         { name: 'National Bank', icon: 'icons/national_bank.png' },
         { name: 'Standard Bank', icon: 'icons/standard_bank.png' }

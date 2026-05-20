@@ -188,12 +188,32 @@
             const emailValue = document.getElementById('signin-email')?.value?.trim().toLowerCase() || '';
             const passwordValue = document.getElementById('signin-password')?.value || '';
             const emailFeedback = document.getElementById('email-feedback');
-            const accounts = JSON.parse(localStorage.getItem('aura_accounts')) || [];
-            const account = accounts.find(acc => (acc.email || '').toLowerCase() === emailValue);
 
-            const hashedInput = await hashPassword(passwordValue);
+            async function tryBackendLogin(email, password) {
+                try {
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const result = await response.json().catch(() => null);
+                    return { ok: response.ok, status: response.status, result };
+                } catch (error) {
+                    return { ok: false, status: 0, error };
+                }
+            }
 
-            if (!account || account.password !== hashedInput) {
+            const backendResponse = await tryBackendLogin(emailValue, passwordValue);
+            let account = null;
+            let useFallback = false;
+
+            if (backendResponse.ok && backendResponse.result?.success) {
+                account = backendResponse.result.user;
+            } else if (backendResponse.status === 0) {
+                useFallback = true;
+            } else {
                 if (emailFeedback) {
                     emailFeedback.textContent = '✗ Invalid email or password';
                     emailFeedback.classList.remove('hidden', 'text-green-500');
@@ -201,6 +221,22 @@
                 }
                 showToast('Invalid login details', 'error');
                 return;
+            }
+
+            if (!account && useFallback) {
+                const accounts = JSON.parse(localStorage.getItem('aura_accounts')) || [];
+                const localAccount = accounts.find(acc => (acc.email || '').toLowerCase() === emailValue);
+                const hashedInput = await hashPassword(passwordValue);
+                if (!localAccount || localAccount.password !== hashedInput) {
+                    if (emailFeedback) {
+                        emailFeedback.textContent = '✗ Invalid email or password';
+                        emailFeedback.classList.remove('hidden', 'text-green-500');
+                        emailFeedback.classList.add('text-red-500');
+                    }
+                    showToast('Invalid login details', 'error');
+                    return;
+                }
+                account = localAccount;
             }
 
             localStorage.setItem('aura_user_logged_in', 'true');
